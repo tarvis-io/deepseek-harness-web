@@ -27,6 +27,12 @@ host with `musl-gcc`; Tarvis cloud workspaces are Hetzner CAX machines (arm64) a
 devices are Raspberry Pi 5 (arm64), Coolify hosts are amd64. The workflow boots each
 image and checks the login flow and the sandbox probe before publishing the manifest.
 
+A new GitHub Packages container is private even when its repository is public, and a
+Tarvis device or workspace pulls anonymously. Make it public once, under
+[package settings](https://github.com/orgs/tarvis-io/packages/container/deepseek-harness-web/settings)
+> Danger Zone > Change visibility. Publishing from CI works either way, so an anonymous
+`docker pull` returning `denied` is the symptom of this being missed.
+
 ## Run with Docker Compose
 
 ```sh
@@ -107,9 +113,10 @@ Both are named volumes by default. Back up `/data/dsh` to keep sessions and keys
 Upstream confines commands with bubblewrap first, then Landlock, and fails closed when
 neither works. Bubblewrap needs unprivileged user namespaces, which container runtimes
 block by default, so the Landlock launcher is what enforces here. It needs a kernel with
-Landlock (5.13+) and a seccomp profile that allows it, both true for current Docker and
-Podman hosts. The `dsh-docker: sandbox backends:` log line reports what the probe found at
-boot. If it says `landlock=unusable`, sessions fail with a sandbox error until you set
+Landlock (5.13+) and a seccomp profile that allows it. The CI smoke test confirms
+`landlock=full` under plain Docker on both architectures; the `dsh-docker: sandbox
+backends:` log line is what to read on any other runtime, Podman included. If it says
+`landlock=unusable`, sessions fail with a sandbox error until you set
 `DSH_PERMISSION_MODE=danger-full-access`; the container boundary is then the only
 confinement.
 
