@@ -65,6 +65,7 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' -b cookies http://127.0.0.1:3080/)
           test "$code" = 200
           docker rm -f dsh
+          echo "image size: $(docker image inspect -f '{{.Size}}' "$ref" | awk '{printf "%.2f GB", $1/1024/1024/1024}')"
       - name: Export digest
         run: |
           mkdir -p digests
