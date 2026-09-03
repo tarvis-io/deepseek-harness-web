@@ -1,0 +1,18 @@
+services:
+  dsh:
+    image: ghcr.io/tarvis-io/deepseek-harness-web:${DSH_TAG:-latest}
+    build: .
+    pull_policy: missing
+    restart: unless-stopped
+    ports:
+      - "${DSH_BIND:-127.0.0.1}:${DSH_PORT:-3080}:3080"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - dsh-home:/data/dsh
+      - ${DSH_WORKSPACE:-dsh-workspace}:/workspace
+
+volumes:
+  dsh-home:
+  dsh-workspace:

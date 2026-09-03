@@ -1,0 +1,2 @@
+#!/bin/sh
+exec node /opt/dsh/apps/cli/lib/bin.js "$@"

@@ -1,0 +1,107 @@
+name: image
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dsh_ref:
+        description: Upstream deepseek-harness ref to build (default from the Dockerfile)
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            ${{ inputs.dsh_ref && format('DSH_REF={0}', inputs.dsh_ref) || '' }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,scope=${{ matrix.platform }},mode=max
+      - name: Smoke test
+        run: |
+          set -eu
+          ref="${IMAGE}@${{ steps.build.outputs.digest }}"
+          docker run -d --name dsh -p 3080:3080 "$ref"
+          for i in $(seq 1 90); do
+            docker logs dsh 2>&1 | grep -q 'dsh web: http' && break
+            sleep 1
+          done
+          docker logs dsh
+          docker logs dsh 2>&1 | grep -q 'dsh web: http://127.0.0.1:3080/?token='
+          docker logs dsh 2>&1 | grep -E 'sandbox backends: .*landlock=(full|partial)'
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3080/)
+          test "$code" = 401
+          token_url=$(docker logs dsh 2>&1 | grep -o 'http://127.0.0.1:3080/?token=[A-Za-z0-9_-]*' | head -1)
+          code=$(curl -s -o /dev/null -w '%{http_code}' -c cookies "$token_url")
+          test "$code" = 303
+          code=$(curl -s -o /dev/null -w '%{http_code}' -b cookies http://127.0.0.1:3080/)
+          test "$code" = 200
+          docker rm -f dsh
+      - name: Export digest
+        run: |
+          mkdir -p digests
+          touch "digests/${{ steps.build.outputs.digest }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
+          path: digests/*
+          if-no-files-found: error
+
+  manifest:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: digests
+          pattern: digest-*
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish multi-arch tags
+        run: |
+          set -eu
+          dsh_ref="${{ inputs.dsh_ref }}"
+          if [ -z "$dsh_ref" ]; then
+            dsh_ref=$(sed -n 's/^ARG DSH_REF=//p' Dockerfile | head -1)
+          fi
+          refs=$(cd digests && printf "${IMAGE}@sha256:%s " *)
+          docker buildx imagetools create \
+            -t "${IMAGE}:latest" \
+            -t "${IMAGE}:${dsh_ref}" \
+            -t "${IMAGE}:sha-$(git rev-parse --short HEAD)" \
+            $refs
+          docker buildx imagetools inspect "${IMAGE}:latest"

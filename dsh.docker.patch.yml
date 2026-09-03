@@ -1,0 +1,10 @@
+# Patch overlay for the web profile: bind all container interfaces. The
+# webserver schema accepts 0.0.0.0; only the CLI flag refuses it. The container
+# is the exposure boundary, so publish or proxy the port deliberately.
+- id: webserver
+  config:
+    host: 0.0.0.0
+    port: 3080
+    compression: gzip
+    compressionLevel: 1
+    compressionThresholdBytes: 1024

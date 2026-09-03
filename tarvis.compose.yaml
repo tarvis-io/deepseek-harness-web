@@ -1,0 +1,23 @@
+# documentation: https://github.com/tarvis-io/deepseek-harness-web
+# slogan: DeepSeek Harness coding agent with its Web UI
+# category: development
+# tags: ai,agent,coding,deepseek
+# port: 3080
+
+# Install on a Tarvis device or cloud workspace: pass this file as the compose
+# of `app_install`. The device routes https://<name>.<device-domain> to port
+# 3080 and fills SERVICE_FQDN_DSH with that name, the trusted
+# authority the /api fence requires.
+services:
+  dsh:
+    image: ghcr.io/tarvis-io/deepseek-harness-web:latest
+    environment:
+      - SERVICE_FQDN_DSH
+      - DSH_TRUSTED_HOSTS=${SERVICE_FQDN_DSH}
+    volumes:
+      - dsh-home:/data/dsh
+      - dsh-workspace:/workspace
+
+volumes:
+  dsh-home:
+  dsh-workspace:
