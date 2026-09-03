@@ -126,7 +126,7 @@ docker compose build --build-arg DSH_REF=dsh-v0.1.3
 ## How the image works
 
 - `Dockerfile` builds from source on Node 24 with pnpm 11.7 (`pnpm install`, the Landlock
-  native build, `pnpm run build`, `pnpm prune --prod`) and copies the built tree to a slim
+  native build, `pnpm run build`) and copies the whole built tree to a slim
   runtime image that runs as the `node` user.
 - `dsh.docker.patch.yml` is a patch overlay that binds the webserver row to `0.0.0.0`.
   Upstream's `--host 0.0.0.0` flag is refused on purpose; the schema still accepts it.
