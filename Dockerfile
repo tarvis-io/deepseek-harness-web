@@ -25,8 +25,16 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 # this step the sandbox has no usable backend inside a container.
 RUN pnpm -C native/landlock-run run build:native \
  && test -x native/landlock-run/packages/linux-*/bin/landlock-run
-RUN pnpm run build \
- && pnpm prune --prod --ignore-scripts
+RUN pnpm run build
+# Drop dev dependencies in place: a recursive production install keeps every
+# workspace importer linked and never rebuilds what is already installed.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --prod --frozen-lockfile --ignore-scripts --store-dir /pnpm/store \
+ && node apps/cli/lib/bin.js --version \
+ && (cd packages/sandbox/sandbox-local && node --input-type=module \
+      -e 'import("@deepseek-ai/node-addon-landlock-run").then(m => { console.log("landlock launcher:", m.launcherPath()) })') \
+ && (cd packages/subprocess/subprocess-local && node --input-type=module \
+      -e 'import("node-pty").then(m => console.log("node-pty:", typeof m.spawn))')
 
 FROM node:${NODE_VERSION}-bookworm-slim
 ARG PNPM_VERSION=11.7.0
