@@ -26,7 +26,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 RUN pnpm -C native/landlock-run run build:native \
  && test -x native/landlock-run/packages/linux-*/bin/landlock-run
 RUN pnpm run build \
- && pnpm prune --prod
+ && pnpm prune --prod --ignore-scripts
 
 FROM node:${NODE_VERSION}-bookworm-slim
 ARG PNPM_VERSION=11.7.0
