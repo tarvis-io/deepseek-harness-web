@@ -122,6 +122,21 @@ confinement.
 
 ## Updating upstream
 
+This image carries a narrowly scoped build-time remote Settings patch. Upstream
+selects persistent Settings only when the **browser URL** is localhost, even when
+a reverse proxy connects to the container on localhost. The patch enables the
+Host settings store for authenticated remote operators, allowing Settings > Models
+to configure providers and save their configuration in the existing data volume.
+It does not change browser-token/cookie authentication, the Host/Origin fence, or
+the global loopback capability. Anyone with an authenticated browser session can
+manage host settings; treat that session as operator access.
+
+`scripts/patch-remote-settings.mjs` runs before the upstream build. It fails if the
+expected persistence gate or authentication guards change, so upgrades require
+review rather than silently dropping the fix. Run its tests with
+`node --test scripts/patch-remote-settings.test.mjs`. After upgrading, also verify
+remote login, provider configuration and persistence across a container restart.
+
 Change the `DSH_REF` default in the `Dockerfile` and push, or dispatch the `image`
 workflow with a ref. Refs are upstream tags (`dsh-v*`), branches, or commits. For a local
 one-off build:

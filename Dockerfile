@@ -19,6 +19,9 @@ RUN git init -q . \
  && git remote add origin "${DSH_REPO}" \
  && git fetch -q --depth 1 origin "${DSH_REF}" \
  && git checkout -q FETCH_HEAD
+COPY scripts/patch-remote-settings.mjs scripts/patch-remote-settings.test.mjs /tmp/remote-settings/
+RUN node --test /tmp/remote-settings/patch-remote-settings.test.mjs \
+ && node /tmp/remote-settings/patch-remote-settings.mjs /src
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --store-dir /pnpm/store
 # The Landlock launcher binaries are git-ignored workspace packages, so without

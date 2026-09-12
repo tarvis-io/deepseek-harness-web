@@ -49,7 +49,7 @@ jobs:
         run: |
           set -eu
           ref="${IMAGE}@${{ steps.build.outputs.digest }}"
-          docker run -d --name dsh -p 3080:3080 "$ref"
+          docker run -d --name dsh -p 127.0.0.1:3080:3080 -e DSH_TRUSTED_HOSTS=dsh.test "$ref"
           for i in $(seq 1 90); do
             docker logs dsh 2>&1 | grep -q 'dsh web: http' && break
             sleep 1
@@ -64,6 +64,7 @@ jobs:
           test "$code" = 303
           code=$(curl -s -o /dev/null -w '%{http_code}' -b cookies http://127.0.0.1:3080/)
           test "$code" = 200
+          node scripts/smoke-remote-settings.mjs dsh
           docker rm -f dsh
           echo "image size: $(docker image inspect -f '{{.Size}}' "$ref" | awk '{printf "%.2f GB", $1/1024/1024/1024}')"
       - name: Export digest
