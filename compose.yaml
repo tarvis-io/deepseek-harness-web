@@ -9,6 +9,9 @@ services:
     env_file:
       - path: .env
         required: false
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - GITLAB_TOKEN=${GITLAB_TOKEN:-}
     volumes:
       - dsh-home:/data/dsh
       - ${DSH_WORKSPACE:-dsh-workspace}:/workspace

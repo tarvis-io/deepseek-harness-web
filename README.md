@@ -57,6 +57,13 @@ After a restart, take the new URL from the logs if the cookie has expired.
 Then, in the UI: Settings > Models to enter an API key, and Choose workspace to add
 `/workspace`.
 
+To clone private repositories over HTTPS, set `GITHUB_TOKEN` or `GITLAB_TOKEN` in
+the container environment and restart it. The entrypoint configures a host-scoped
+credential helper, so keep the repository URL clean (for example,
+`https://github.com/owner/repository.git`). The token is never added to the clone
+URL or repository configuration. Use a fine-grained, read-only token when the
+workspace only needs to clone and pull.
+
 ## Run on a Tarvis device or cloud workspace
 
 Install `tarvis.compose.yaml` as an app, either through the Personal Cloud page or with
@@ -95,6 +102,8 @@ accounts, only the launch token above.
 | `DSH_TRUSTED_HOSTS` | empty | Comma separated authorities accepted by the `/api` fence |
 | `DSH_WORKSPACE` | named volume | Host directory mounted at `/workspace` |
 | `DSH_PERMISSION_MODE` | `workspace-write` | Session sandbox fallback: `read-only`, `workspace-write`, `danger-full-access` |
+| `GITHUB_TOKEN` | empty | HTTPS credential for private repositories on `github.com` |
+| `GITLAB_TOKEN` | empty | HTTPS credential for private repositories on `gitlab.com` |
 
 Extra arguments in a compose `command:` are appended to `dsh web`. Any other `DSH_*` or
 provider variable in `.env` reaches the process as well.
