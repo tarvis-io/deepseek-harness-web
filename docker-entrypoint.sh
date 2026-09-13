@@ -15,6 +15,15 @@ sandbox_report() {
   echo "dsh-docker: sandbox backends: bwrap=$bwrap landlock=${landlock:-unusable}"
 }
 
+configure_git_credentials() {
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
+    git config --global --replace-all credential.https://github.com.helper /usr/local/bin/git-credential-env
+  fi
+  if [ -n "${GITLAB_TOKEN:-}" ]; then
+    git config --global --replace-all credential.https://gitlab.com.helper /usr/local/bin/git-credential-env
+  fi
+}
+
 set -- --no-open "$@"
 for entry in $(printf '%s' "${DSH_TRUSTED_HOSTS:-}" | tr ',' ' '); do
   entry=${entry#http://}
@@ -24,5 +33,6 @@ for entry in $(printf '%s' "${DSH_TRUSTED_HOSTS:-}" | tr ',' ' '); do
     set -- --trusted-host "$entry" "$@"
   fi
 done
+configure_git_credentials
 sandbox_report
 exec dsh web --patch /etc/dsh/docker.patch.yml "$@"

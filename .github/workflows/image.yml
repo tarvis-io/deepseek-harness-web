@@ -8,6 +8,9 @@ on:
       dsh_ref:
         description: Upstream deepseek-harness ref to build (default from the Dockerfile)
         required: false
+      publish_tag:
+        description: Review image tag; manual runs never update latest
+        required: false
 
 permissions:
   contents: read
@@ -49,7 +52,10 @@ jobs:
         run: |
           set -eu
           ref="${IMAGE}@${{ steps.build.outputs.digest }}"
-          docker run -d --name dsh -p 127.0.0.1:3080:3080 -e DSH_TRUSTED_HOSTS=dsh.test "$ref"
+          docker run -d --name dsh -p 127.0.0.1:3080:3080 \
+            -e DSH_TRUSTED_HOSTS=dsh.test \
+            -e GITHUB_TOKEN=test-github-token \
+            -e GITLAB_TOKEN=test-gitlab-token "$ref"
           for i in $(seq 1 90); do
             docker logs dsh 2>&1 | grep -q 'dsh web: http' && break
             sleep 1
@@ -64,6 +70,21 @@ jobs:
           test "$code" = 303
           code=$(curl -s -o /dev/null -w '%{http_code}' -b cookies http://127.0.0.1:3080/)
           test "$code" = 200
+          docker exec dsh sh -lc '
+            test "$(git config --global --get credential.https://github.com.helper)" = /usr/local/bin/git-credential-env
+            test "$(git config --global --get credential.https://gitlab.com.helper)" = /usr/local/bin/git-credential-env
+            github=$(printf "protocol=https\nhost=github.com\n\n" | git credential fill)
+            test "$github" = "protocol=https
+          host=github.com
+          username=x-access-token
+          password=test-github-token"
+            gitlab=$(printf "protocol=https\nhost=gitlab.com\n\n" | git credential fill)
+            test "$gitlab" = "protocol=https
+          host=gitlab.com
+          username=oauth2
+          password=test-gitlab-token"
+            ! grep -R -q "test-github-token\|test-gitlab-token" "$HOME/.gitconfig" /workspace 2>/dev/null
+          '
           node scripts/smoke-remote-settings.mjs dsh
           docker rm -f dsh
           echo "image size: $(docker image inspect -f '{{.Size}}' "$ref" | awk '{printf "%.2f GB", $1/1024/1024/1024}')"
@@ -102,9 +123,20 @@ jobs:
             dsh_ref=$(sed -n 's/^ARG DSH_REF=//p' Dockerfile | head -1)
           fi
           refs=$(cd digests && printf "${IMAGE}@sha256:%s " *)
-          docker buildx imagetools create \
-            -t "${IMAGE}:latest" \
-            -t "${IMAGE}:${dsh_ref}" \
-            -t "${IMAGE}:sha-$(git rev-parse --short HEAD)" \
-            $refs
-          docker buildx imagetools inspect "${IMAGE}:latest"
+          short=$(git rev-parse --short HEAD)
+          if [ "${{ github.event_name }}" = push ] && [ "${{ github.ref }}" = refs/heads/main ]; then
+            inspect_tag=latest
+            tags=(-t "${IMAGE}:latest" -t "${IMAGE}:${dsh_ref}" -t "${IMAGE}:sha-${short}")
+          else
+            inspect_tag="${{ inputs.publish_tag }}"
+            if [ -z "$inspect_tag" ]; then
+              inspect_tag="sha-${short}"
+            fi
+            if ! [[ "$inspect_tag" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
+              echo "invalid publish_tag: $inspect_tag" >&2
+              exit 1
+            fi
+            tags=(-t "${IMAGE}:${inspect_tag}" -t "${IMAGE}:sha-${short}")
+          fi
+          docker buildx imagetools create "${tags[@]}" $refs
+          docker buildx imagetools inspect "${IMAGE}:${inspect_tag}"

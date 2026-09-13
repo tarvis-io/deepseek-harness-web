@@ -46,7 +46,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && npm install -g pnpm@${PNPM_VERSION}
 COPY --from=build --chown=node:node /src /opt/dsh
-COPY --chmod=755 dsh docker-entrypoint.sh /usr/local/bin/
+COPY --chmod=755 dsh docker-entrypoint.sh git-credential-env /usr/local/bin/
 COPY dsh.docker.patch.yml /etc/dsh/docker.patch.yml
 ENV DSH_HOME=/data/dsh
 RUN mkdir -p /data/dsh /workspace && chown -R node:node /data /workspace
