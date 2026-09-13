@@ -64,6 +64,11 @@ credential helper, so keep the repository URL clean (for example,
 URL or repository configuration. Use a fine-grained, read-only token when the
 workspace only needs to clone and pull.
 
+The image also includes the workspace Git plugin. On first start, the entrypoint installs
+the comma-separated entries in `DSH_PLUGINS` into the persistent `web` profile. Entries
+can be package names, Git URLs, tarball URLs, or directories baked into the image. A
+changed list is applied on the next restart.
+
 ## Run on a Tarvis device or cloud workspace
 
 Install `tarvis.compose.yaml` as an app, either through the Personal Cloud page or with
@@ -104,6 +109,8 @@ accounts, only the launch token above.
 | `DSH_PERMISSION_MODE` | `workspace-write` | Session sandbox fallback: `read-only`, `workspace-write`, `danger-full-access` |
 | `GITHUB_TOKEN` | empty | HTTPS credential for private repositories on `github.com` |
 | `GITLAB_TOKEN` | empty | HTTPS credential for private repositories on `gitlab.com` |
+| `DSH_PLUGINS` | bundled workspace Git directory | Comma-separated plugins installed into the selected profile |
+| `DSH_PLUGIN_PROFILE` | `web` | Profile that receives `DSH_PLUGINS` |
 
 Extra arguments in a compose `command:` are appended to `dsh web`. Any other `DSH_*` or
 provider variable in `.env` reaches the process as well.

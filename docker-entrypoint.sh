@@ -34,5 +34,6 @@ for entry in $(printf '%s' "${DSH_TRUSTED_HOSTS:-}" | tr ',' ' '); do
   fi
 done
 configure_git_credentials
+dsh-install-plugins
 sandbox_report
 exec dsh web --patch /etc/dsh/docker.patch.yml "$@"

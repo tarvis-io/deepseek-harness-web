@@ -9,9 +9,11 @@ FROM node:${NODE_VERSION}-bookworm AS build
 ARG DSH_REPO=https://github.com/deepseek-ai/deepseek-harness.git
 ARG DSH_REF=dsh-v0.1.2-rc.1
 ARG PNPM_VERSION=11.7.0
+ARG WORKSPACE_GIT_URL=https://github.com/leonardoxr/dsh-workspace-git/releases/download/v0.1.1/dsh-workspace-git-0.1.1.tgz
+ARG WORKSPACE_GIT_SHA256=7ec0d28b84142059eb9a8be0f8358b1e69f30d38146036772550ab18791bd2da
 ENV CI=true
 RUN apt-get update \
- && apt-get install -y --no-install-recommends musl-tools \
+ && apt-get install -y --no-install-recommends ca-certificates curl musl-tools \
  && rm -rf /var/lib/apt/lists/* \
  && npm install -g pnpm@${PNPM_VERSION}
 WORKDIR /src
@@ -38,6 +40,15 @@ RUN pnpm run build \
  && (cd packages/subprocess/subprocess-local && node --input-type=module \
       -e 'import("node-pty").then(m => console.log("node-pty:", typeof m.spawn))')
 
+RUN mkdir -p /opt/dsh-plugins/dsh-workspace-git-0.1.1 \
+ && curl -fsSL "$WORKSPACE_GIT_URL" -o /tmp/workspace-git.tgz \
+ && echo "$WORKSPACE_GIT_SHA256  /tmp/workspace-git.tgz" | sha256sum -c - \
+ && tar -xzf /tmp/workspace-git.tgz --strip-components=1 \
+      -C /opt/dsh-plugins/dsh-workspace-git-0.1.1
+COPY scripts/prepare-bundled-plugins.mjs /tmp/prepare-bundled-plugins.mjs
+RUN node /tmp/prepare-bundled-plugins.mjs \
+      /opt/dsh-plugins/dsh-workspace-git-0.1.1
+
 FROM node:${NODE_VERSION}-bookworm-slim
 ARG PNPM_VERSION=11.7.0
 RUN apt-get update \
@@ -46,9 +57,11 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && npm install -g pnpm@${PNPM_VERSION}
 COPY --from=build --chown=node:node /src /opt/dsh
-COPY --chmod=755 dsh docker-entrypoint.sh git-credential-env /usr/local/bin/
+COPY --from=build --chown=node:node /opt/dsh-plugins /opt/dsh-plugins
+COPY --chmod=755 dsh docker-entrypoint.sh dsh-install-plugins git-credential-env /usr/local/bin/
 COPY dsh.docker.patch.yml /etc/dsh/docker.patch.yml
 ENV DSH_HOME=/data/dsh
+ENV DSH_PLUGINS=/opt/dsh-plugins/dsh-workspace-git-0.1.1
 RUN mkdir -p /data/dsh /workspace && chown -R node:node /data /workspace
 USER node
 WORKDIR /workspace
