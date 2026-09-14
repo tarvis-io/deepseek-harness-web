@@ -1,0 +1,25 @@
+#!/bin/sh
+set -eu
+
+plugins=$(printf '%s' "${DSH_PLUGINS:-}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;/^$/d')
+[ -n "$plugins" ] || exit 0
+
+profile=${DSH_PLUGIN_PROFILE:-web}
+profile_dir=${DSH_HOME:-/data/dsh}/profiles/$profile
+state_file=$profile_dir/.installed-plugins
+desired=$(printf '%s\n' "$plugins")
+
+if [ -f "$state_file" ] && [ "$(cat "$state_file")" = "$desired" ]; then
+  echo "dsh-docker: plugins already installed for profile $profile"
+  exit 0
+fi
+
+echo "dsh-docker: installing plugins for profile $profile"
+printf '%s\n' "$plugins" | while IFS= read -r plugin; do
+  echo "dsh-docker: installing plugin $plugin"
+  dsh plugin --profile "$profile" add "$plugin"
+done
+
+mkdir -p "$profile_dir"
+printf '%s' "$desired" > "$state_file"
+echo "dsh-docker: plugin installation complete"

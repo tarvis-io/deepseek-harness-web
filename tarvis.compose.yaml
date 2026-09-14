@@ -16,6 +16,7 @@ services:
       - DSH_TRUSTED_HOSTS=${SERVICE_FQDN_DSH}
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
       - GITLAB_TOKEN=${GITLAB_TOKEN:-}
+      - DSH_PLUGINS=${DSH_PLUGINS:-/opt/dsh-plugins/dsh-workspace-git-0.1.1}
     volumes:
       - dsh-home:/data/dsh
       - dsh-workspace:/workspace
